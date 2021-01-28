@@ -2021,7 +2021,7 @@ void CUDAExecutionProvider::RegisterAllocator(std::shared_ptr<AllocatorManager> 
   if (nullptr == cuda_alloc) {
     AllocatorCreationInfo default_memory_info(
         [](OrtDevice::DeviceId device_id) {
-          return onnxruntime::make_unique<CUDAAllocator>(device_id, CUDA);
+          return onnxruntime::make_unique<CUDAAllocator>(device_id, GPU);
         },
         info_.device_id,
         true,
