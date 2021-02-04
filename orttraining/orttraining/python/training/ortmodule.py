@@ -166,7 +166,7 @@ class ORTModule(torch.nn.Module):
         # TODO: PyTorch exporter bug: changes the initializer order
         # TODO: RemovePyTorch lists unused layers at named_parameters(), need to remove them
         initializer_names = [p[0] for p in self._original_module.named_parameters()]
-        onnx_initializer_names = [p.name for p in self._onnx_training.graph.initializer]
+        onnx_initializer_names = [p.name for p in self._onnx_inference.graph.initializer]
         initializer_names = [p for p in initializer_names if p in onnx_initializer_names]
 
         # Build full training graph
@@ -346,7 +346,7 @@ class ORTModule(torch.nn.Module):
                 backward_grad_output_ortvalue = []
                 for grad_output in grad_output[:len(self._onnx_graphs_info.backward_output_grad_names)]:
                     backward_grad_output_ortvalue.append(onnxruntime.OrtValue.ortvalue_from_data_ptr(list(grad_output.size()), _utils.dtype_torch_to_numpy(
-                        grad_output.dtype), grad_output.device.type, _get_device_index(grad_output.device), grad_output.data_ptr()))
+                        grad_output.dtype), grad_output.device.type, _utils.get_device_index(grad_output.device), grad_output.data_ptr()))
 
                 # Run and get results
                 self._training_session.run_backward(backward_grad_output_ortvalue)

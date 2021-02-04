@@ -22,8 +22,7 @@ Status AddToExistingNodeArgs(
     auto* new_nodearg = graph.GetNodeArg(new_nodearg_name);
     if (!new_nodearg){
       LOGS_DEFAULT(INFO) << "failed to find NodeArg by name: " << new_nodearg_name;
-      graph.GetOrCreateNodeArg(new_nodearg_name, nullptr);
-      new_nodearg = graph.GetNodeArg(new_nodearg_name);
+      new_nodearg = &graph.GetOrCreateNodeArg(new_nodearg_name, nullptr);
     }
 
     if (nodeargs_set.find(new_nodearg) != nodeargs_set.end()) {
