@@ -13,8 +13,8 @@ ONNX_OPERATOR_KERNEL_EX(
     1,
     kCudaExecutionProvider,
     KernelDefBuilder()
-        .TypeConstraint("T", DataTypeImpl::AllFixedSizeTensorTypes())
-        .VariadicAlias(0, 0),  // TODO: this is a hack to avoid allocating output buffer
+        .VariadicAlias(0, 0)  // TODO: this is a hack to avoid allocating output buffer
+        .TypeConstraint("T", DataTypeImpl::AllFixedSizeTensorTypes()),
     onnxruntime::contrib::Yield);
 
 }  // namespace cuda
