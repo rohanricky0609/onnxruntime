@@ -118,6 +118,10 @@ class GradientGraphBuilder {
   // key: name of the gradient, value: num of gradients pending
   std::unordered_map<std::string, int> pending_;
 
+  // If set to true, gradient graph will have gradients of outputs only
+  // This handles the special case for models without parameters
+  bool non_trainable_weights_only_;
+
   /**
   Perferms a ReverseBFS on the graph
   @param nodes Starting nodes for ReverseBFS
@@ -133,7 +137,7 @@ class GradientGraphBuilder {
 
   Status CheckNodeArgsReachable() const;
 
-  /** 
+  /**
   Check if node is reachable from the 'y_node_args_'
    **/
   bool IsReachable(const Node* node) const {

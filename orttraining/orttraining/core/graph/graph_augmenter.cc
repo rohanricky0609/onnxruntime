@@ -11,7 +11,7 @@ namespace training {
 namespace {
 Status AddToExistingNodeArgs(
     const std::string& addition_context,
-    const Graph& graph,
+    Graph& graph,
     const std::vector<std::string>& new_nodearg_names,
     const std::vector<const NodeArg*>& existing_nodeargs,
     bool is_duplicate_an_error,
@@ -19,10 +19,12 @@ Status AddToExistingNodeArgs(
   std::unordered_set<const NodeArg*> nodeargs_set(existing_nodeargs.begin(), existing_nodeargs.end());
   nodeargs = existing_nodeargs;
   for (const auto& new_nodearg_name : new_nodearg_names) {
-    const auto* new_nodearg = graph.GetNodeArg(new_nodearg_name);
-    ORT_RETURN_IF_NOT(
-        new_nodearg,
-        addition_context, " - failed to find NodeArg by name: ", new_nodearg_name);
+    auto* new_nodearg = graph.GetNodeArg(new_nodearg_name);
+    if (!new_nodearg){
+      LOGS_DEFAULT(INFO) << "failed to find NodeArg by name: " << new_nodearg_name;
+      graph.GetOrCreateNodeArg(new_nodearg_name, nullptr);
+      new_nodearg = graph.GetNodeArg(new_nodearg_name);
+    }
 
     if (nodeargs_set.find(new_nodearg) != nodeargs_set.end()) {
       ORT_RETURN_IF(

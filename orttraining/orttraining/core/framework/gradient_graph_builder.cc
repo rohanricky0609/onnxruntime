@@ -27,7 +27,8 @@ GradientGraphBuilder::GradientGraphBuilder(Graph* graph,
     : graph_(graph),
       loss_node_arg_name_(loss_node_arg_name),
       gradient_graph_config_(gradient_graph_config),
-      logger_(logger) {
+      logger_(logger),
+      non_trainable_weights_only_(false) {
   auto rule_based_graph_transformer =
       onnxruntime::make_unique<RuleBasedGraphTransformer>("pre_training_rule_based_graph_transformer");
   rule_based_graph_transformer->Register(make_unique<InsertMaxPoolOutput>());
@@ -55,8 +56,10 @@ GradientGraphBuilder::GradientGraphBuilder(Graph* graph,
 
     const Node* node = graph_->GetProducerNode(name);
     if (!node) {
-      if (x_node_arg_names.size() > 0) {
+      if (x_nodes_.size() == 0) {
         // Allow graphs without nodes such as input1 -> input1
+        non_trainable_weights_only_ = true;
+      } else {
         ORT_THROW(name, " couldn't find the producer node.");
       }
     } else {
@@ -145,106 +148,113 @@ Status GradientGraphBuilder::CheckNodeArgsReachable() const {
 }
 
 Status GradientGraphBuilder::Build(const std::unordered_set<std::string>* p_initializer_names_to_preserve) {
-  auto opt_ret = graph_transformation_mgr_.ApplyTransformers(*graph_, TransformerLevel::Level2, logger_);
-  ORT_RETURN_IF_ERROR(opt_ret);
-
   GraphAugmenter::GraphDefs gradient_graph_defs;
-  // add "gradient of the loss" node, always 1.
-  if (loss_node_arg_name_ != "") {
-    ONNX_NAMESPACE::TensorProto tensor_proto;
-    tensor_proto.set_data_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
-    tensor_proto.add_float_data(1.f);
-    tensor_proto.set_name(GradientBuilderBase::GradientName(loss_node_arg_name_));
 
-    gradient_graph_defs.AddInitializers({tensor_proto});
-  }
+  if (!non_trainable_weights_only_) {
+    auto opt_ret = graph_transformation_mgr_.ApplyTransformers(*graph_, TransformerLevel::Level2, logger_);
+    ORT_RETURN_IF_ERROR(opt_ret);
 
-  ORT_RETURN_IF_ERROR(CheckNodeArgsReachable());
+    // add "gradient of the loss" node, always 1.
+    if (loss_node_arg_name_ != "") {
+      ONNX_NAMESPACE::TensorProto tensor_proto;
+      tensor_proto.set_data_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+      tensor_proto.add_float_data(1.f);
+      tensor_proto.set_name(GradientBuilderBase::GradientName(loss_node_arg_name_));
 
-  // Going forward to figure out which node_args need backprop-ed.
-  std::deque<const Node*> queue(x_nodes_.begin(), x_nodes_.end());
-  NodeSet visited(x_nodes_);
-
-  std::unordered_set<const NodeArg*> visited_node_args = x_node_args_;
-  visited_node_args.insert(y_node_args_.begin(), y_node_args_.end());
-
-  while (!queue.empty()) {
-    const Node* node = queue.front();
-    queue.pop_front();
-
-    for (auto edge_it = node->OutputEdgesBegin(); edge_it != node->OutputEdgesEnd(); ++edge_it) {
-      const Node& next_node = edge_it->GetNode();
-
-      if (!IsReachable(&next_node)) continue;
-
-      auto it = STOP_GRADIENT_EDGES.find(next_node.OpType());
-      if (it != STOP_GRADIENT_EDGES.end() && it->second.count(edge_it->GetDstArgIndex())) {
-        LOGS(logger_, WARNING) << "Skip building gradient for input_" << edge_it->GetDstArgIndex()
-                               << " of node: " << next_node.Name();
-        continue;
-      }
-
-      const NodeArg* node_arg = node->OutputDefs()[edge_it->GetSrcArgIndex()];
-      std::string grad_node_arg_name = GradientBuilderBase::GradientName(node_arg->Name());
-
-      pending_[grad_node_arg_name] += 1;
-
-      visited_node_args.insert(node_arg);
-
-      if (visited.find(&next_node) == visited.end()) {
-        queue.push_back(&next_node);
-        visited.insert(&next_node);
-      }
-    }
-  }
-
-  // so far, visited are the minimum node in between
-  // visited_node_args are the node_args involved
-  for (auto node : visited) {
-    //TODO: might not need two sets, the union of them might be enough
-    std::unordered_set<std::string> input_args_need_grad, output_args_need_grad;
-    for (auto arg : node->InputDefs()) {
-      if (visited_node_args.find(arg) != visited_node_args.end()) {
-        input_args_need_grad.insert(arg->Name());
-      }
-    }
-    for (auto arg : node->OutputDefs()) {
-      if (visited_node_args.find(arg) != visited_node_args.end()) {
-        output_args_need_grad.insert(arg->Name());
-      }
+      gradient_graph_defs.AddInitializers({tensor_proto});
     }
 
-    GradientDef node_defs = GetGradientForOp(gradient_graph_config_, graph_, node, output_args_need_grad, input_args_need_grad, logger_);
+    ORT_RETURN_IF_ERROR(CheckNodeArgsReachable());
 
-    // updates arg name if gradient accumulation is needed
-    for (auto& op_def : node_defs) {
-      for (auto& arg : op_def.output_args) {
-        auto found = pending_.find(arg.name);
-        if (found != pending_.end() && found->second > 1) {
-          auto idx = gradients_to_accumulate_[arg].size();
-          std::string indexed_arg_name = arg.name + "_" + to_string(idx);
-          gradients_to_accumulate_[arg].push_back(ArgDef(indexed_arg_name, arg.type_proto));
+    // Going forward to figure out which node_args need backprop-ed.
+    std::deque<const Node*> queue(x_nodes_.begin(), x_nodes_.end());
+    NodeSet visited(x_nodes_);
 
-          arg.name = indexed_arg_name;
+    std::unordered_set<const NodeArg*> visited_node_args = x_node_args_;
+    visited_node_args.insert(y_node_args_.begin(), y_node_args_.end());
+
+    while (!queue.empty()) {
+      const Node* node = queue.front();
+      queue.pop_front();
+
+      for (auto edge_it = node->OutputEdgesBegin(); edge_it != node->OutputEdgesEnd(); ++edge_it) {
+        const Node& next_node = edge_it->GetNode();
+
+        if (!IsReachable(&next_node)) continue;
+
+        auto it = STOP_GRADIENT_EDGES.find(next_node.OpType());
+        if (it != STOP_GRADIENT_EDGES.end() && it->second.count(edge_it->GetDstArgIndex())) {
+          LOGS(logger_, WARNING) << "Skip building gradient for input_" << edge_it->GetDstArgIndex()
+                                << " of node: " << next_node.Name();
+          continue;
+        }
+
+        const NodeArg* node_arg = node->OutputDefs()[edge_it->GetSrcArgIndex()];
+        std::string grad_node_arg_name = GradientBuilderBase::GradientName(node_arg->Name());
+
+        pending_[grad_node_arg_name] += 1;
+
+        visited_node_args.insert(node_arg);
+
+        if (visited.find(&next_node) == visited.end()) {
+          queue.push_back(&next_node);
+          visited.insert(&next_node);
         }
       }
     }
-    gradient_graph_defs.AddNodeDefs(node_defs);
-  }
 
-  // Accumulate Gradients
-  for (auto gradient_pair : gradients_to_accumulate_) {
-    gradient_graph_defs.AddNodeDefs(
-        {NodeDef("Sum",
-                 gradient_pair.second,
-                 {gradient_pair.first},
-                 NodeAttributes(),
-                 "AccumulateGrad_" + gradient_pair.first.name)});
-  }
+    // so far, visited are the minimum node in between
+    // visited_node_args are the node_args involved
+    for (auto node : visited) {
+      //TODO: might not need two sets, the union of them might be enough
+      std::unordered_set<std::string> input_args_need_grad, output_args_need_grad;
+      for (auto arg : node->InputDefs()) {
+        if (visited_node_args.find(arg) != visited_node_args.end()) {
+          input_args_need_grad.insert(arg->Name());
+        }
+      }
+      for (auto arg : node->OutputDefs()) {
+        if (visited_node_args.find(arg) != visited_node_args.end()) {
+          output_args_need_grad.insert(arg->Name());
+        }
+      }
 
-  if (gradient_graph_config_.set_gradients_as_graph_outputs) {
-    for (auto x_node_arg : x_node_args_) {
-      gradient_graph_defs.AddGraphOutputs({GradientBuilderBase::GradientName(x_node_arg->Name())});
+      GradientDef node_defs = GetGradientForOp(gradient_graph_config_, graph_, node, output_args_need_grad, input_args_need_grad, logger_);
+
+      // updates arg name if gradient accumulation is needed
+      for (auto& op_def : node_defs) {
+        for (auto& arg : op_def.output_args) {
+          auto found = pending_.find(arg.name);
+          if (found != pending_.end() && found->second > 1) {
+            auto idx = gradients_to_accumulate_[arg].size();
+            std::string indexed_arg_name = arg.name + "_" + to_string(idx);
+            gradients_to_accumulate_[arg].push_back(ArgDef(indexed_arg_name, arg.type_proto));
+
+            arg.name = indexed_arg_name;
+          }
+        }
+      }
+      gradient_graph_defs.AddNodeDefs(node_defs);
+    }
+
+    // Accumulate Gradients
+    for (auto gradient_pair : gradients_to_accumulate_) {
+      gradient_graph_defs.AddNodeDefs(
+          {NodeDef("Sum",
+                  gradient_pair.second,
+                  {gradient_pair.first},
+                  NodeAttributes(),
+                  "AccumulateGrad_" + gradient_pair.first.name)});
+    }
+
+    if (gradient_graph_config_.set_gradients_as_graph_outputs) {
+      for (auto x_node_arg : x_node_args_) {
+        gradient_graph_defs.AddGraphOutputs({GradientBuilderBase::GradientName(x_node_arg->Name())});
+      }
+    }
+  } else {
+    for (auto y_node_arg : y_node_args_) {
+      gradient_graph_defs.AddGraphOutputs({GradientBuilderBase::GradientName(y_node_arg->Name())});
     }
   }
 
