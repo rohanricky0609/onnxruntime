@@ -44,5 +44,44 @@ ONNX_OPERATOR_KERNEL_EX(
         .VariadicAlias(0, 0),  // outputs and inputs are mapped one to one
     PassThrough);
 
+Status Yield::Compute(OpKernelContext* ctx) const {
+  auto* ctx_internal = static_cast<OpKernelContextInternal*>(ctx);
+  for (int i_in = 0; i_in < ctx->InputCount(); ++i_in) {
+    onnxruntime::contrib::OrtMessageQueue::GetInstance().Push(*ctx_internal->GetInputMLValue(i_in));
+  }
+
+  // Reset background event before returning to main thread
+  const int64_t background_thread_event_id = 1;
+  onnxruntime::contrib::OrtEventPool::GetInstance().ResetEvent(background_thread_event_id);
+
+  // single event for InferenceSession::RunInBackgroundAndWaitForYield() that FW graph is done
+  const int64_t main_thread_event_id = 0;
+  OrtEventPool::GetInstance().SignalEvent(main_thread_event_id);
+
+  // wait for event from InferenceSession::ContinueRunInBackground() to continue the BW graph
+  OrtEventPool::GetInstance().WaitAndResetEvent(background_thread_event_id);
+
+  if (ctx_internal->GetTerminateFlag()) {
+    LOGS(ctx->Logger(), WARNING) << "Resumed executing backward subgraph, terminate_flag is set to true.";
+  } else {
+    // Get output grad from somewhere and prepare Op outputs.
+    for (int i_out = 0; i_out < ctx->OutputCount(); ++i_out) {
+      ctx_internal->SetOutputMLValue(i_out, OrtMessageQueue::GetInstance().Pop());
+    }
+  }
+
+  return Status::OK();
+}
+
+ONNX_OPERATOR_KERNEL_EX(
+    Yield,
+    kMSDomain,
+    1,
+    kCpuExecutionProvider,
+    KernelDefBuilder()
+        .TypeConstraint("T", DataTypeImpl::AllTensorTypes())
+        .VariadicAlias(0, 0),  // outputs and inputs are mapped one to one
+    Yield);
+
 }  // namespace contrib
 }  // namespace onnxruntime
