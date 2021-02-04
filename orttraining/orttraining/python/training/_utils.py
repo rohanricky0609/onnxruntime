@@ -42,13 +42,13 @@ def get_device_index_from_input(input):
         device_index = get_device_index(input.device)
     return device_index
 
-def get_device_index_from_input_args_kwargs(*args, **kwargs):
+def get_device_from_input_args_kwargs(*args, **kwargs):
     '''Returns device index from first PyTorch Tensor within *args or **kwargs'''
 
     device = None
     if args:
         device = torch.device(args[0].device)
-    elif not device and kwargs:
+    if not device and kwargs:
         device = torch.device(next(iter(kwargs.values())).device)
     return device
 

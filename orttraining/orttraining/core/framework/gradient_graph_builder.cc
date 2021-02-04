@@ -253,7 +253,7 @@ Status GradientGraphBuilder::Build(const std::unordered_set<std::string>* p_init
       }
     }
   } else {
-    for (auto y_node_arg : y_node_args_) {
+    for (const auto& y_node_arg : y_node_args_) {
       gradient_graph_defs.AddGraphOutputs({GradientBuilderBase::GradientName(y_node_arg->Name())});
     }
   }
