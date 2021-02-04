@@ -9,21 +9,15 @@
 namespace onnxruntime {
 namespace contrib {
 
-// TODO: remove this warning 
-#pragma warning(push)
-#pragma warning(disable : 4002)  //Warning C4002: too many arguments for function-like macro invocation 'Yield'
-
 ONNX_OPERATOR_KERNEL_EX(
     Yield,
     kMSDomain,
     1,
     kCpuExecutionProvider,
     KernelDefBuilder()
-        .VariadicAlias(0, 0)  // TODO: this is a hack to avoid allocating output buffer
-        .TypeConstraint("T", DataTypeImpl::AllFixedSizeTensorTypes()),
+        .TypeConstraint("T", DataTypeImpl::AllFixedSizeTensorTypes())
+        .VariadicAlias(0, 0),  // TODO: this is a hack to avoid allocating output buffer
     Yield);
-
-#pragma warning(pop)
 
 Status Yield::Compute(OpKernelContext* ctx) const {
   auto* ctx_internal = static_cast<OpKernelContextInternal*>(ctx);
