@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 #include "orttraining/training_ops/cpu/controlflow/group.h"
+#include "orttraining/training_ops/cpu/controlflow/message_queue.h"
+#include "orttraining/training_ops/cpu/controlflow/event_pool.h"
+#include "core/framework/op_kernel_context_internal.h"
 
 namespace onnxruntime {
 namespace contrib {
