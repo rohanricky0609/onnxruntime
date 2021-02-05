@@ -84,7 +84,7 @@ ONNX_OPERATOR_KERNEL_EX(
     KernelDefBuilder()
         .TypeConstraint("T", DataTypeImpl::AllTensorTypes())
         .VariadicAlias(0, 0),  // outputs and inputs are mapped one to one
-    Yield);
+    onnxruntime::contrib::Yield);
 
 }  // namespace contrib
 }  // namespace onnxruntime
