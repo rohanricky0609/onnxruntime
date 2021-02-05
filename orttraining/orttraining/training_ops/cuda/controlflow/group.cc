@@ -29,14 +29,14 @@ ONNX_OPERATOR_KERNEL_EX(
     onnxruntime::contrib::PassThrough);
 
 ONNX_OPERATOR_KERNEL_EX(
-    Yield,
+    YieldOp,
     kMSDomain,
     1,
     kCudaExecutionProvider,
     KernelDefBuilder()
         .VariadicAlias(0, 0)  // TODO: this is a hack to avoid allocating output buffer
         .TypeConstraint("T", DataTypeImpl::AllFixedSizeTensorTypes()),
-    onnxruntime::contrib::Yield);
+    onnxruntime::contrib::YieldOp);
 
 }  // namespace cuda
 }  // namespace onnxruntime

@@ -47,7 +47,7 @@ ONNX_OPERATOR_KERNEL_EX(
         .VariadicAlias(0, 0),  // outputs and inputs are mapped one to one
     PassThrough);
 
-Status Yield::Compute(OpKernelContext* ctx) const {
+Status YieldOp::Compute(OpKernelContext* ctx) const {
   auto* ctx_internal = static_cast<OpKernelContextInternal*>(ctx);
   for (int i_in = 0; i_in < ctx->InputCount(); ++i_in) {
     onnxruntime::contrib::OrtMessageQueue::GetInstance().Push(*ctx_internal->GetInputMLValue(i_in));
@@ -77,14 +77,14 @@ Status Yield::Compute(OpKernelContext* ctx) const {
 }
 
 ONNX_OPERATOR_KERNEL_EX(
-    Yield,
+    YieldOp,
     kMSDomain,
     1,
     kCpuExecutionProvider,
     KernelDefBuilder()
         .TypeConstraint("T", DataTypeImpl::AllTensorTypes())
         .VariadicAlias(0, 0),  // outputs and inputs are mapped one to one
-    onnxruntime::contrib::Yield);
+    onnxruntime::contrib::YieldOp);
 
 }  // namespace contrib
 }  // namespace onnxruntime

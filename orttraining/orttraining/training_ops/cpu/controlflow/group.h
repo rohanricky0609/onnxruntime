@@ -21,9 +21,9 @@ class PassThrough : public OpKernel {
   Status Compute(OpKernelContext* context) const override;
 };
 
-class Yield final : public OpKernel {
+class YieldOp final : public OpKernel {
  public:
-  Yield(const OpKernelInfo& info) : OpKernel(info) {}
+  YieldOp(const OpKernelInfo& info) : OpKernel(info) {}
   Status Compute(OpKernelContext* context) const override;
 };
 
