@@ -3,6 +3,8 @@
 
 #include <fstream>
 #include <core/common/safeint.h>
+#include <sys/utsname.h>
+#include <TargetConditionals.h>
 
 #include "model_builder.h"
 #include "helper.h"
@@ -31,6 +33,7 @@ Status ModelBuilder::Initialize() {
     neural_network->set_arrayinputshapemapping(::CoreML::Specification::NeuralNetworkMultiArrayShapeMapping::EXACT_ARRAY_MAPPING);
   }
 
+  (void)HasNeuralEngine(logger_);
   PreprocessInitializers();
   ORT_RETURN_IF_ERROR(RegisterInitializers());
   ORT_RETURN_IF_ERROR(RegisterModelInputs());
@@ -235,6 +238,33 @@ std::string ModelBuilder::GetUniqueName(const std::string& base_name) {
   } while (Contains(unique_names_, unique_name));
 
   return unique_name;
+}
+
+/* static */ bool ModelBuilder::HasNeuralEngine(const logging::Logger& logger) {
+  bool has_neural_engine = false;
+  struct utsname system_info;
+  uname(&system_info);
+  LOGS(logger, VERBOSE) << "Current machine hardware info: " << system_info.machine;
+
+#if TARGET_OS_IPHONE
+  // utsname.machine has device identifier. For example, identifier for iPhone Xs is "iPhone11,2".
+  // Since Neural Engine is only available for use on A12 and later, major device version in the
+  // identifier is checked for these models:
+  // A12: iPhone XS (11,2), iPad Mini - 5th Gen (11,1)
+  // A12X: iPad Pro - 3rd Gen (8,1)
+  // For more information, see https://www.theiphonewiki.com/wiki/Models
+  if (strncmp("iPad", system_info.machine, 4) == 0) {
+    const int major_version = atoi(system_info.machine + 4);
+    has_neural_engine = major_version >= 8;  // There are no device between iPad 8 and 11.
+  } else if (strncmp("iPhone", system_info.machine, 6) == 0) {
+    const int major_version = atoi(system_info.machine + 6);
+    has_neural_engine = major_version >= 11;
+  }
+#elif TARGET_OS_OSX && TARGET_CPU_ARM64
+  // Only Mac with arm64 CPU (Apple Silicon) has ANE.
+  has_neural_engine = true;
+#endif
+  return has_neural_engine;
 }
 
 }  // namespace coreml

@@ -19,9 +19,13 @@ enum COREMLFlags {
   // Enable CoreML EP on subgraph
   COREML_FLAG_ENABLE_ON_SUBGRAPH = 0x002,
 
+  // By default CoreML Execution provider will be enabled only on devices with Apple Neural Engine
+  // Enable this option will enable CoreML EP on all compatible Apple devices
+  COREML_FLAG_USE_ALL_DEVICE = 0x004,
+
   // Keep COREML_FLAG_MAX at the end of the enum definition
   // And assign the last COREMLFlag to it
-  COREML_FLAG_LAST = COREML_FLAG_ENABLE_ON_SUBGRAPH,
+  COREML_FLAG_LAST = COREML_FLAG_USE_ALL_DEVICE,
 };
 
 #ifdef __cplusplus

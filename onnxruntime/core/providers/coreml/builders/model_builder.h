@@ -34,6 +34,10 @@ class ModelBuilder {
 
   std::string GetUniqueName(const std::string& base_name);
 
+  // CoreML is more efficient running using Apple Neural Engine
+  // This is to detect if the current system has Apple Neural Engine
+  static bool HasNeuralEngine(const logging::Logger& logger);
+
  private:
   const GraphViewer& graph_viewer_;
   const logging::Logger& logger_;

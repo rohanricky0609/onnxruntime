@@ -67,6 +67,11 @@ CoreMLExecutionProvider::GetCapability(const onnxruntime::GraphViewer& graph_vie
   */
 
   const auto& logger = *GetLogger();
+  if (!(coreml_flags_ & COREML_FLAG_USE_ALL_DEVICE) && !coreml::ModelBuilder::HasNeuralEngine(logger)) {
+    LOGS(logger, VERBOSE) << "The current system does not have Apple Neural Engine";
+    return result;
+  }
+
   const auto node_groups = coreml::GetSupportedNodes(graph_viewer, logger);
 
   if (node_groups.empty()) {
