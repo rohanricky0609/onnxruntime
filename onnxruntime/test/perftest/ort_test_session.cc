@@ -46,7 +46,9 @@ OnnxRuntimeTestSession::OnnxRuntimeTestSession(Ort::Env& env, std::random_device
         static_cast<OrtCudnnConvAlgoSearch>(performance_test_config.run_config.cudnn_conv_algo),
         std::numeric_limits<size_t>::max(),
         0,
-        !performance_test_config.run_config.do_cuda_copy_in_separate_stream};
+        !performance_test_config.run_config.do_cuda_copy_in_separate_stream,
+        0,
+        nullptr};
     session_options.AppendExecutionProvider_CUDA(cuda_options);
 #else
     ORT_THROW("CUDA is not supported in this build\n");
@@ -75,6 +77,12 @@ OnnxRuntimeTestSession::OnnxRuntimeTestSession(Ort::Env& env, std::random_device
     Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_Nnapi(session_options, 0));
 #else
     ORT_THROW("NNAPI is not supported in this build\n");
+#endif
+  } else if (provider_name == onnxruntime::kCoreMLExecutionProvider) {
+#ifdef USE_COREML
+    Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(session_options, 0));
+#else
+    ORT_THROW("COREML is not supported in this build\n");
 #endif
   } else if (provider_name == onnxruntime::kDmlExecutionProvider) {
 #ifdef USE_DML
