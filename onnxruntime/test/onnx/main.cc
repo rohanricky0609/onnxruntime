@@ -379,7 +379,9 @@ int real_main(int argc, char* argv[], Ort::Env& env) {
     }
     if (enable_coreml) {
 #ifdef USE_COREML
-      Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(sf, 0));
+      uint32_t coreml_flags = 0;
+      coreml_flags |= COREML_FLAG_USE_ALL_DEVICES;
+      Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(sf, coreml_flags));
 #else
       fprintf(stderr, "CoreML is not supported in this build");
       return -1;

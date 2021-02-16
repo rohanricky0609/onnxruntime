@@ -21,11 +21,11 @@ enum COREMLFlags {
 
   // By default CoreML Execution provider will be enabled only on devices with Apple Neural Engine
   // Enable this option will enable CoreML EP on all compatible Apple devices
-  COREML_FLAG_USE_ALL_DEVICE = 0x004,
+  COREML_FLAG_USE_ALL_DEVICES = 0x004,
 
   // Keep COREML_FLAG_MAX at the end of the enum definition
   // And assign the last COREMLFlag to it
-  COREML_FLAG_LAST = COREML_FLAG_USE_ALL_DEVICE,
+  COREML_FLAG_LAST = COREML_FLAG_USE_ALL_DEVICES,
 };
 
 #ifdef __cplusplus

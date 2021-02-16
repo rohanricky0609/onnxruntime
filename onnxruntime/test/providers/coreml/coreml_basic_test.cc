@@ -70,7 +70,7 @@ TEST(CoreMLExecutionProviderTest, FunctionTest) {
   // We want to run UT on CPU only to get output value without losing precision
   uint32_t coreml_flags = 0;
   coreml_flags |= COREML_FLAG_USE_CPU_ONLY;
-  coreml_flags |= COREML_FLAG_USE_ALL_DEVICE;  // UT device may not have neural engine
+  coreml_flags |= COREML_FLAG_USE_ALL_DEVICES;  // UT device may not have neural engine
 
   CreateMLValue<float>(TestCoreMLExecutionProvider(coreml_flags)->GetAllocator(0, OrtMemTypeDefault), dims_mul_x, values_mul_x,
                        &ml_value_x);

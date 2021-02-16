@@ -143,7 +143,7 @@ std::unique_ptr<IExecutionProvider> DefaultCoreMLExecutionProvider() {
   // We want to run UT on CPU only to get output value without losing precision
   uint32_t coreml_flags = 0;
   coreml_flags |= COREML_FLAG_USE_CPU_ONLY;
-  coreml_flags |= COREML_FLAG_USE_ALL_DEVICE;  // UT device may not have neural engine
+  coreml_flags |= COREML_FLAG_USE_ALL_DEVICES;  // UT device may not have neural engine
   return CreateExecutionProviderFactory_CoreML(coreml_flags)->CreateProvider();
 #else
   return nullptr;
