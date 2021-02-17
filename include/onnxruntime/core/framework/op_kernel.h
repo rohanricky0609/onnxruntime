@@ -483,25 +483,12 @@ using BuildKernelCreateInfoFn = KernelCreateInfo (*)();
         static_cast<KernelCreatePtrFn>([](const OpKernelInfo& info) -> OpKernel* { return new __VA_ARGS__(info); })); \
   }
 
-template <typename... Types>
-struct BuildKernelDefConstraintsImpl {
-  std::vector<MLDataType> operator()() const {
-    return {DataTypeImpl::GetTensorType<Types>()...};
-  }
-};
-
 // Use within macro definitions to create a custom vector of constraints.
 // Example: #define REG_KERNEL(OP, VERSION, KERNEL_CLASS, Type, ...)
 //  .TypeConstraint("T", BuildKernelDefConstraints<Type, __VA_ARGS_>())
-template <typename... Types>
+template <typename T, typename... Types>
 inline std::vector<MLDataType> BuildKernelDefConstraints() {
-  return BuildKernelDefConstraintsImpl<Types...>{}();
-}
-
-// version of BuildKernelDefConstraints() which takes a type list
-template <typename L>
-std::vector<MLDataType> BuildKernelDefConstraintsFromTypeList() {
-  return boost::mp11::mp_apply<BuildKernelDefConstraintsImpl, L>{}();
+  return {DataTypeImpl::GetTensorType<T>(), DataTypeImpl::GetTensorType<Types>()...};
 }
 
 // functor that calls BuildKernelDefConstraints()
@@ -514,7 +501,6 @@ struct BuildKernelDefConstraintsFunctor {
 
 // the type BuildKernelDefConstraintsFunctor<T...> given a type list L<T...>
 template <typename L>
-using BuildKernelDefConstraintsFunctorFromTypeList =
-    boost::mp11::mp_apply<BuildKernelDefConstraintsFunctor, L>;
+using BuildKernelDefConstraintsFunctorFromTypeList = boost::mp11::mp_apply<BuildKernelDefConstraintsFunctor, L>;
 
 }  // namespace onnxruntime

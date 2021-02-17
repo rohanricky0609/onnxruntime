@@ -462,16 +462,6 @@ MlasPool(
     MLAS_THREADPOOL* ThreadPool
     );
 
-void
-MLASCALL
-MlasMaximumPool(
-    const uint8_t* const* Input,
-    uint8_t* Output,
-    size_t Channels,
-    size_t OutputCount,
-    size_t KernelSize
-    );
-
 //
 // Miscellaneous compute routines.
 //

@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <cmath>
 #include "core/common/common.h"
 #include "core/framework/op_node_proto_helper.h"
 #include "core/framework/tensor_shape.h"
